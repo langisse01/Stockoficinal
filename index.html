@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AutoGest Pro + Stock</title>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --secondary: #3498db;
+            --success: #27ae60;
+            --warning: #f1c40f;
+            --info: #9b59b6;
+            --danger: #e74c3c;
+            --light: #ecf0f1;
+            --dark: #2c3e50;
+        }
+
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f4f7f6; margin: 0; padding: 20px; }
+        .container { max-width: 1200px; margin: auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        
+        /* Menu de Abas */
+        .tabs { display: flex; gap: 5px; margin-bottom: 20px; border-bottom: 2px solid var(--primary); }
+        .tab-btn { padding: 10px 20px; cursor: pointer; background: #ddd; border: none; border-radius: 5px 5px 0 0; font-weight: bold; }
+        .tab-btn.active { background: var(--primary); color: white; }
+
+        #loginOverlay { position: fixed; top:0; left:0; width:100%; height:100%; background: var(--dark); display: flex; justify-content: center; align-items: center; z-index: 1000; }
+        .login-box { background: white; padding: 30px; border-radius: 8px; width: 300px; text-align: center; }
+        
+        h1, h2 { color: var(--primary); border-bottom: 2px solid var(--secondary); padding-bottom: 10px; }
+        .grid-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px; }
+        .full-width { grid-column: 1 / -1; }
+        
+        .checklist-section, .stock-section { background: #f9f9f9; padding: 15px; border-radius: 5px; border-left: 5px solid var(--secondary); margin: 10px 0; }
+        
+        label { display: block; margin-bottom: 5px; font-weight: bold; color: #555; font-size: 0.9em; }
+        input, select, textarea { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; }
+        
+        button { padding: 10px 15px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; transition: 0.3s; margin-bottom: 5px; }
+        .btn-add { background: var(--success); color: white; width: 100%; font-size: 1.1em; }
+        .btn-move { background: var(--info); color: white; }
+        
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { text-align: left; padding: 10px; border-bottom: 1px solid #ddd; font-size: 0.9em; }
+        th { background: var(--primary); color: white; }
+
+        /* Impressão */
+        #printArea { display: none; padding: 40px; }
+        .signature-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 50px; margin-top: 60px; text-align: center; }
+        .sig-line { border-top: 1px solid #000; padding-top: 10px; }
+
+        @media print {
+            .no-print { display: none !important; }
+            #printArea { display: block !important; }
+            .container { box-shadow: none; border: none; width: 100%; }
+        }
+    </style>
+</head>
+<body>
+
+<div id="loginOverlay">
+    <div class="login-box">
+        <h2>Acesso AutoGest</h2>
+        <input type="text" id="userInput" placeholder="Admin">
+        <input type="password" id="passInput" placeholder="Senha" style="margin-top:10px">
+        <button class="btn-add" style="margin-top:10px" onclick="checkLogin()">Entrar</button>
+    </div>
+</div>
+
+<div class="container" id="mainContent" style="display:none;">
+    <div class="no-print">
+        <h1>🛠️ AutoGest Pro + Stock</h1>
+        
+        <div class="tabs">
+            <button class="tab-btn active" onclick="showTab('servicos')">Serviços & Viaturas</button>
+            <button class="tab-btn" onclick="showTab('stock')">Gestão de Stock</button>
+        </div>
+
+        <div id="tab-servicos">
+            <section>
+                <h2>Novo Registo / Check-list</h2>
+                <form id="serviceForm" class="grid-form">
+                    <input type="text" id="proprietario" placeholder="Proprietário" required>
+                    <input type="text" id="marca" placeholder="Viatura" required>
+                    <input type="text" id="matricula" placeholder="Matrícula" required>
+                    <input type="tel" id="telemovel" placeholder="Telemóvel" required>
+                    <input type="date" id="dataEntrada" required>
+                    <select id="tipoAvaria">
+                        <option value="Mecânica">Mecânica</option>
+                        <option value="Elétrica">Elétrica</option>
+                        <option value="Revisão">Revisão Geral</option>
+                    </select>
+                    <input type="number" id="custo" placeholder="Custo Estimado (MT)" required>
+                    
+                    <div class="full-width checklist-section">
+                        <label>📋 Check-list de Entrada:</label>
+                        <div style="display:flex; gap:20px;">
+                            <span>Iluminação: <select id="chkIlu"><option>✅ OK</option><option>❌ Falha</option></select></span>
+                            <span>Travões: <select id="chkTra"><option>✅ OK</option><option>❌ Falha</option></select></span>
+                            <span>Combustível: <select id="chkCom"><option>Reserva</option><option>1/2</option><option>Cheio</option></select></span>
+                        </div>
+                    </div>
+                    <textarea id="obs" class="full-width" placeholder="Observações..."></textarea>
+                    <button type="submit" class="btn-add full-width">Registar Entrada</button>
+                </form>
+            </section>
+            
+            <section>
+                <h2>Histórico</h2>
+                <input type="text" id="filterUser" placeholder="Pesquisar proprietário..." onkeyup="renderServices()">
+                <table id="tableServ">
+                    <thead><tr><th>Cliente</th><th>Viatura</th><th>Status</th><th>Ações</th></tr></thead>
+                    <tbody id="bodyServ"></tbody>
+                </table>
+            </section>
+        </div>
+
+        <div id="tab-stock" style="display:none;">
+            <section>
+                <h2>Novo Item ou Entrada no Stock</h2>
+                <form id="stockForm" class="grid-form">
+                    <input type="text" id="itemName" placeholder="Nome da Peça (ex: Filtro de Óleo)" required>
+                    <input type="number" id="itemQty" placeholder="Quantidade" required>
+                    <select id="moveType">
+                        <option value="entrada">Entrada (Compra/Reposição)</option>
+                        <option value="saida">Saída (Requisição para Obra)</option>
+                    </select>
+                    <input type="text" id="itemDestino" placeholder="Destino/Matrícula (Se saída)">
+                    <textarea id="itemObs" class="full-width" placeholder="Observações de stock..."></textarea>
+                    <button type="submit" class="btn-add full-width" style="background:var(--secondary)">Registar Movimentação</button>
+                </form>
+            </section>
+
+            <section>
+                <h2>Stock Atualizado</h2>
+                <div class="controls">
+                    <input type="month" id="stockMonth">
+                    <button class="btn-report" onclick="generateStockReport()">Relatório Mensal Stock</button>
+                </div>
+                <table>
+                    <thead><tr><th>Peça</th><th>Entradas</th><th>Saídas</th><th>Stock Atual</th><th>Ações</th></tr></thead>
+                    <tbody id="bodyStock"></tbody>
+                </table>
+            </section>
+        </div>
+    </div>
+
+    <div id="printArea">
+        <div class="print-header">
+            <h1 id="pTitle">DOCUMENTO</h1>
+            <p>Data: <span id="pDate"></span> | Ref: <span id="pRef"></span></p>
+        </div>
+        <div id="pContent"></div>
+        <div class="signature-grid">
+            <div><div class="sig-line">Responsável/Funcionário</div></div>
+            <div><div class="sig-line">Cliente/Requisitante</div></div>
+        </div>
+        <div class="no-print" style="text-align:center; margin-top:20px;">
+            <button onclick="window.print()" style="background:var(--success); color:white;">Confirmar Impressão</button>
+            <button onclick="location.reload()">Sair</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    let services = JSON.parse(localStorage.getItem('oficina_services')) || [];
+    let stockMoves = JSON.parse(localStorage.getItem('oficina_stock')) || [];
+
+    function checkLogin() {
+        if(document.getElementById('userInput').value === 'admin' && document.getElementById('passInput').value === '123456') {
+            document.getElementById('loginOverlay').style.display = 'none';
+            document.getElementById('mainContent').style.display = 'block';
+        } else { alert('Acesso Negado'); }
+    }
+
+    function showTab(tab) {
+        document.getElementById('tab-servicos').style.display = tab === 'servicos' ? 'block' : 'none';
+        document.getElementById('tab-stock').style.display = tab === 'stock' ? 'block' : 'none';
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        event.currentTarget.classList.add('active');
+    }
+
+    // --- LÓGICA DE SERVIÇOS ---
+    document.getElementById('serviceForm').addEventListener('submit', (e) => {
+        e.preventDefault();
+        services.push({
+            id: Date.now(),
+            proprietario: document.getElementById('proprietario').value,
+            marca: document.getElementById('marca').value,
+            matricula: document.getElementById('matricula').value,
+            telemovel: document.getElementById('telemovel').value,
+            dataEntrada: document.getElementById('dataEntrada').value,
+            tipoAvaria: document.getElementById('tipoAvaria').value,
+            custo: document.getElementById('custo').value,
+            obs: document.getElementById('obs').value,
+            chk: [document.getElementById('chkIlu').value, document.getElementById('chkTra').value, document.getElementById('chkCom').value]
+        });
+        localStorage.setItem('oficina_services', JSON.stringify(services));
+        renderServices();
+        e.target.reset();
+    });
+
+    function renderServices() {
+        const f = document.getElementById('filterUser').value.toLowerCase();
+        const b = document.getElementById('bodyServ'); b.innerHTML = '';
+        services.filter(s => s.proprietario.toLowerCase().includes(f)).forEach(s => {
+            b.innerHTML += `<tr>
+                <td>${s.proprietario}</td>
+                <td>${s.marca} (${s.matricula})</td>
+                <td>Entrada: ${s.dataEntrada}</td>
+                <td>
+                    <button class="btn-guide" onclick="printEntrada(${s.id})">Guia Entrada</button>
+                    <button class="btn-invoice" onclick="printFatura(${s.id})">Fatura</button>
+                </td>
+            </tr>`;
+        });
+    }
+
+    // --- LÓGICA DE STOCK ---
+    document.getElementById('stockForm').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const qty = parseInt(document.getElementById('itemQty').value);
+        const type = document.getElementById('moveType').value;
+        
+        stockMoves.push({
+            id: Date.now(),
+            nome: document.getElementById('itemName').value,
+            qtd: qty,
+            tipo: type,
+            destino: document.getElementById('itemDestino').value,
+            obs: document.getElementById('itemObs').value,
+            data: new Date().toISOString().split('T')[0]
+        });
+        localStorage.setItem('oficina_stock', JSON.stringify(stockMoves));
+        renderStock();
+        e.target.reset();
+    });
+
+    function renderStock() {
+        const b = document.getElementById('bodyStock'); b.innerHTML = '';
+        const uniqueItems = [...new Set(stockMoves.map(m => m.nome))];
+        
+        uniqueItems.forEach(nome => {
+            const moves = stockMoves.filter(m => m.nome === nome);
+            const entradas = moves.filter(m => m.tipo === 'entrada').reduce((a, b) => a + b.qtd, 0);
+            const saidas = moves.filter(m => m.tipo === 'saida').reduce((a, b) => a + b.qtd, 0);
+            const total = entradas - saidas;
+
+            b.innerHTML += `<tr>
+                <td><strong>${nome}</strong></td>
+                <td style="color:green">+ ${entradas}</td>
+                <td style="color:red">- ${saidas}</td>
+                <td style="background:#eee"><strong>${total}</strong></td>
+                <td><button class="btn-move" onclick="printRequisicao('${nome}')">Guia Requis.</button></td>
+            </tr>`;
+        });
+    }
+
+    // --- IMPRESSÕES ---
+    function printEntrada(id) {
+        const s = services.find(x => x.id === id);
+        document.getElementById('pTitle').innerText = "GUIA DE ENTRADA / CHECK-LIST";
+        document.getElementById('pDate').innerText = s.dataEntrada;
+        document.getElementById('pContent').innerHTML = `
+            <p><strong>Cliente:</strong> ${s.proprietario} | <strong>Viatura:</strong> ${s.marca} (${s.matricula})</p>
+            <p><strong>Check-list:</strong> Iluminação: ${s.chk[0]} | Travões: ${s.chk[1]} | Combustível: ${s.chk[2]}</p>
+            <p><strong>Obs:</strong> ${s.obs}</p>
+        `;
+        window.print();
+    }
+
+    function printRequisicao(nome) {
+        const lastMove = [...stockMoves].reverse().find(m => m.nome === nome && m.tipo === 'saida');
+        if(!lastMove) { alert("Nenhuma saída registada para esta peça."); return; }
+        
+        document.getElementById('pTitle').innerText = "GUIA DE REQUISIÇÃO DE MATERIAL";
+        document.getElementById('pDate').innerText = lastMove.data;
+        document.getElementById('pContent').innerHTML = `
+            <h3>Material: ${lastMove.nome}</h3>
+            <p><strong>Quantidade Levantada:</strong> ${lastMove.qtd}</p>
+            <p><strong>Aplicado na Viatura/Destino:</strong> ${lastMove.destino || 'Não especificado'}</p>
+            <p><strong>Observações:</strong> ${lastMove.obs}</p>
+        `;
+        window.print();
+    }
+
+    function generateStockReport() {
+        const mes = document.getElementById('stockMonth').value;
+        if(!mes) return alert("Selecione o mês");
+        const moves = stockMoves.filter(m => m.data.startsWith(mes));
+        
+        document.getElementById('pTitle').innerText = "RELATÓRIO MENSAL DE STOCK (" + mes + ")";
+        let html = '<table border="1" style="width:100%; border-collapse:collapse"><tr><th>Data</th><th>Peça</th><th>Tipo</th><th>Qtd</th><th>Destino</th></tr>';
+        moves.forEach(m => {
+            html += `<tr><td>${m.data}</td><td>${m.nome}</td><td>${m.tipo}</td><td>${m.qtd}</td><td>${m.destino}</td></tr>`;
+        });
+        document.getElementById('pContent').innerHTML = html + '</table>';
+        window.print();
+    }
+
+    renderServices();
+    renderStock();
+</script>
+</body>
+</html>
